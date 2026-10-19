@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  manifests:
+    name: Plugin manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      # Deliberately the newest release: the mod API is early access, and a change in it
+      # should fail here before it reaches a user. The log names the version that ran.
+      - name: Install Claude Code CLI
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude --version
+
+      # `claude plugin validate` reads local files only - no account, no API key.
+      - name: Validate the plugin manifest, hooks module and state contract
+        run: claude plugin validate ./plugins/vero-runto
+
+      - name: Validate again, warnings as errors
+        run: claude plugin validate ./plugins/vero-runto --strict
+
+      # The parser and the drawing, run against the engine itself: no account, no API key.
+      - name: Test the hooks module
+        run: claude plugin test ./plugins/vero-runto
+
+  shell:
+    name: Shell lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Parse every script
+        run: |
+          for f in install.sh uninstall.sh tests/smoke.sh; do
+            echo "bash -n $f"
+            bash -n "$f"
+          done
+
+      - name: ShellCheck
+        run: |
+          shellcheck --version
+          shellcheck -s bash -S warning install.sh uninstall.sh tests/smoke.sh
+
+      # macOS ships bash 3.2 as /bin/bash; bash 5 and ShellCheck accept syntax it rejects.
+      - name: Parse under bash 3.2
+        run: |
+          for f in install.sh uninstall.sh tests/smoke.sh; do
+            echo "bash 3.2 -n $f"
+            docker run --rm -v "$PWD":/r:ro bash:3.2 bash -n "/r/$f"
+          done
+
+  smoke:
+    name: Smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Run the smoke test
+        run: tests/smoke.sh
+
+  endings:
+    name: Line endings and permissions
+    runs-on: ubuntu-latest
+    steps:
+      # A clone with core.autocrlf=true is what a Windows user gets. Without
+      # .gitattributes it hands them scripts that die on "/usr/bin/env: 'bash\r'".
+      # The commit under test, not the default branch: for a pull request github.sha is
+      # its merge commit, which GitHub serves by hash.
+      - name: Check out the way a Windows user would
+        run: |
+          git init -q checkout
+          git -C checkout config core.autocrlf true
+          git -C checkout fetch -q --depth 1 "${{ github.server_url }}/${{ github.repository }}" "${{ github.sha }}"
+          git -C checkout checkout -q FETCH_HEAD
+
+      - name: No CRLF reached the working tree
+        working-directory: checkout
+        run: |
+          bad=0
+          for f in install.sh uninstall.sh tests/smoke.sh; do
+            if grep -q $'\r$' "$f"; then echo "CRLF in $f"; bad=1; else echo "LF ok: $f"; fi
+            if [ ! -x "$f" ]; then echo "not executable: $f"; bad=1; fi
+          done
+          exit "$bad"
+
+      - name: The smoke test runs from that clone
+        working-directory: checkout
+        run: tests/smoke.sh
