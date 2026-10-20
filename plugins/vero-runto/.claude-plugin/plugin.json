@@ -2,7 +2,7 @@
   "name": "vero-runto",
   "displayName": "VeroRunto",
   "description": "Click. Run. Done. [ Copy ] and [ Run ] after every ! command in Claude's replies: Run asks first, runs it through Claude Code's Bash tool under your permission rules, and hands the output to Claude.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": {
     "name": "Dmitry Koshelenko",
     "url": "https://github.com/GomelHawk"
@@ -30,7 +30,11 @@
       "title": "Join for Copy all and Run all",
       "description": "How [ Copy all ] and [ Run all ] join several commands: && (stop at the first failure), ; (run each), or newline.",
       "default": "&&",
-      "options": ["&&", ";", "newline"]
+      "options": [
+        "&&",
+        ";",
+        "newline"
+      ]
     }
   }
 }

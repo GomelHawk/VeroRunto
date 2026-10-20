@@ -71,7 +71,7 @@ In the desktop app, where `/plugin` does not run: click **+** next to the prompt
 To check it took, type `/vero-runto`: it describes the plugin and its options.
 
 **Only from VeroPlugins.** VeroRunto works only when installed from VeroPlugins. A copy
-installed from anywhere else pauses and shows, above the prompt, three buttons that move
+installed from anywhere else pauses and shows, above the prompt, four buttons that move
 it here: press them one after another, pressing Enter after each, then restart Claude
 Code. VeroRunto keeps no data of its own, so nothing is lost on the way.
 
@@ -154,6 +154,14 @@ commands follow it:
 **A command your permission rules forbid** has no Run button, only Copy. One that Claude
 Code would ask you about has the button, and the usual permission dialog opens when you
 confirm.
+
+**A run Claude Code refuses** shows a toast and sends nothing to Claude. In auto mode a
+command no allow rule covers goes to the auto-mode classifier, which judges only what
+Claude itself asked for; a button press gives it nothing to judge, so it refuses:
+*Not run: auto mode can't approve a button press.* Run that command in your terminal, or
+add an allow rule for it. A deny rule, or No in the dialog, reads *Not run: Claude Code's
+permission check refused it.* The engine's own reason goes to the debug log
+(`claude --debug`).
 
 ## What counts as a command
 

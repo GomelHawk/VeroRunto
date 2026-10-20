@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.1 - 2026-10-20
+
+### Fixed
+
+- **A refused run says why, in plain words.** When Claude Code refuses a button's command
+  (auto mode cannot approve a press, a deny rule, or No in the dialog), the toast says so;
+  the engine's reason, written for Claude, goes to the debug log only.
+
+### Changed
+
+- **The move row has four buttons.** After the old copy is removed, a fourth button
+  removes the marketplace it came from, so nothing of it stays behind. A copy from
+  VeroPlugins that finds an older copy of itself offers the same two removals.
+
 ## 1.0.0 - 2026-10-15
 
 Click. Run. Done.

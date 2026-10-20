@@ -413,3 +413,18 @@ export function runLog(command: string, output: string, opts: { isError: boolean
   const count = `${grouped(lines.length)} ${lines.length === 1 ? 'line' : 'lines'}`
   return `${head} → ${count}, ${isCut ? `first ${grouped(opts.maxChars)} chars ` : ''}sent to Claude`
 }
+
+// What a refused run says to the person. The engine's reason is written for the model
+// ("Issue the action again once…"), so it never reaches the screen: the register module
+// sends it to the debug log. Auto mode's classifier judges a call against the model
+// request that asked for it; a press has none, so the classifier gives no verdict and the
+// engine refuses. Anything else is a deny rule or a No in the permission dialog. The
+// first clause carries the point: a toast box cuts the rest off.
+export const REFUSED = {
+  noVerdict: "Not run: auto mode can't approve a button press. Run it in your terminal, or add an allow rule for it.",
+  denied: "Not run: Claude Code's permission check refused it - a deny rule, or No in the dialog.",
+}
+
+export function refusalToast(reason: string): string {
+  return /classifier/i.test(reason) && /no verdict/i.test(reason) ? REFUSED.noVerdict : REFUSED.denied
+}

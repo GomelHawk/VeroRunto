@@ -32,6 +32,7 @@ function fakeWorld(on: On, world: World = {}) {
     checked: [] as string[],
     ran: [] as string[],
     logged: [] as string[],
+    debugged: [] as string[],
     submitted: [] as string[],
     toasts: [] as string[],
     commands: [] as string[],
@@ -70,7 +71,7 @@ function fakeWorld(on: On, world: World = {}) {
     return { value: undefined }
   })
   on('ui.log', ($, e) => {
-    seen.logged.push(e.text)
+    ;(e.to === 'debug' ? seen.debugged : seen.logged).push(e.text)
     return { value: undefined }
   })
   on('ui.copy', ($, e) => {
@@ -120,6 +121,7 @@ const MOVE = [
   '/plugin marketplace add GomelHawk/VeroPlugins',
   '/plugin install vero-runto@vero-plugins',
   '/plugin uninstall vero-runto@some-marketplace',
+  '/plugin marketplace remove some-marketplace',
 ]
 
 const LOGIN = 'Please log in, then tell me to continue:\n\n! gh auth login\n\nAfter that I open the PR.'
@@ -250,8 +252,14 @@ for (const surface of ['terminal', 'desktop'] as const) {
       expect(seen.toasts).toEqual(['Run failed - the output went to Claude.'])
     })
 
-    test('a run the engine denies: a toast, nothing to the model', async ($, on) => {
-      const seen = fakeWorld(on, { deny: 'blocked by a rule' })
+    // The reason auto mode's classifier gives for a call no model request asked for, as
+    // the engine words it: addressed to the model.
+    const NO_VERDICT =
+      'The server-side auto mode classifier gave no verdict for Bash: the request that produced this action did not ask for one. ' +
+      "Issue the action again once, as-is; if it is denied again, continue with other tasks that don't require it and tell the user."
+
+    test('a run auto mode gives no verdict: a toast for the person, the reason only in the debug log', async ($, on) => {
+      const seen = fakeWorld(on, { deny: NO_VERDICT })
       await start($, surface)
       const ui = await mountReply($, surface, LOGIN)
       const hash = blockHash(LOGIN)
@@ -259,8 +267,39 @@ for (const surface of ['terminal', 'desktop'] as const) {
       await ui.press({ key: `yes:${hash}:0` })
       expect(seen.submitted).toEqual([])
       expect(seen.logged).toEqual([])
-      expect(seen.toasts).toEqual(['Not run: blocked by a rule'])
+      expect(seen.debugged).toEqual([`not run \`gh auth login\`: ${NO_VERDICT}`])
+      expect(seen.toasts).toEqual([
+        "Not run: auto mode can't approve a button press. Run it in your terminal, or add an allow rule for it.",
+      ])
     })
+
+    test('a run a rule or the dialog denies: a toast saying so, nothing to the model', async ($, on) => {
+      const seen = fakeWorld(on, { deny: 'Permission to use Bash with command gh auth login has been denied.' })
+      await start($, surface)
+      const ui = await mountReply($, surface, LOGIN)
+      const hash = blockHash(LOGIN)
+      await ui.press({ key: `run:${hash}:0` })
+      await ui.press({ key: `yes:${hash}:0` })
+      expect(seen.submitted).toEqual([])
+      expect(seen.logged).toEqual([])
+      expect(seen.toasts).toEqual(["Not run: Claude Code's permission check refused it - a deny rule, or No in the dialog."])
+    })
+
+    for (const deny of [NO_VERDICT, 'Issue the action again once, as-is.', 'blocked by a rule']) {
+      test(`no refusal puts the engine's words on screen: ${deny.slice(0, 40)}`, async ($, on) => {
+        const seen = fakeWorld(on, { deny })
+        await start($, surface)
+        const ui = await mountReply($, surface, LOGIN)
+        const hash = blockHash(LOGIN)
+        await ui.press({ key: `run:${hash}:0` })
+        await ui.press({ key: `yes:${hash}:0` })
+        const shown = [...seen.toasts, ...seen.logged].join('\n')
+        expect(shown).toMatch(/^Not run: /)
+        expect(shown).not.toMatch(/issue the action|as-is|classifier|blocked by a rule/i)
+        // the point, before any box cuts the line: "Not run:" and why, in one clause
+        expect(seen.toasts[0].split(/\. | - /)[0].length).toBeLessThan(60)
+      })
+    }
 
     test('long output is cut at 10 000 characters', async ($, on) => {
       const seen = fakeWorld(on, { output: 'x'.repeat(12000) })
@@ -457,7 +496,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
       expect(text).not.toContain('Click. Run. Done.')
     })
 
-    test('the band: the reason, three buttons, no ×, and what is drawn beneath', async ($, on) => {
+    test('the band: the reason, four buttons, no ×, and what is drawn beneath', async ($, on) => {
       fakeWorld(on, { env: { VERO_TEST_ROOT: FOREIGN } })
       await start($, surface)
       const band = await mountBand($, surface)
@@ -470,8 +509,9 @@ for (const surface of ['terminal', 'desktop'] as const) {
       expect((await band.find({ key: 'vr-move:1' }))?.text).toBe('1 ↓ Add VeroPlugins')
       expect((await band.find({ key: 'vr-move:2' }))?.text).toBe('2 ↓ Install from VeroPlugins')
       expect((await band.find({ key: 'vr-move:3' }))?.text).toBe('3 ↓ Remove this copy')
+      expect((await band.find({ key: 'vr-move:4' }))?.text).toBe('4 ↓ Remove the old marketplace')
       expect(await band.find({ type: 'Text', text: 'then restart Claude Code' })).toBeDefined()
-      expect((await band.findAll({ type: 'Button' })).length).toBe(3)
+      expect((await band.findAll({ type: 'Button' })).length).toBe(4)
       expect(await band.find({ type: 'Text', text: '×' })).toBe(undefined)
     })
 
@@ -482,6 +522,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
       await band.press({ key: 'vr-move:1' })
       await band.press({ key: 'vr-move:2' })
       await band.press({ key: 'vr-move:3' })
+      await band.press({ key: 'vr-move:4' })
       expect(seen.filled).toEqual(MOVE.map(text => ({ text, mode: 'replace' })))
       expect(seen.ran).toEqual([])
       expect(seen.submitted).toEqual([])
@@ -540,11 +581,17 @@ for (const surface of ['terminal', 'desktop'] as const) {
       expect(
         await band.find({ type: 'Text', text: '⛔ VeroRunto is paused - an old copy from old-place is still installed. Remove it, then restart.' }),
       ).toBeDefined()
-      expect((await band.findAll({ type: 'Button' })).length).toBe(1)
-      await band.press({ key: 'vr-move:remove' })
-      expect(seen.filled).toEqual([{ text: '/plugin uninstall vero-runto@old-place --scope local', mode: 'replace' }])
+      expect((await band.findAll({ type: 'Button' })).length).toBe(2)
+      expect((await band.find({ key: 'vr-move:remove-1' }))?.text).toBe('1 ↓ Remove the old copy')
+      expect((await band.find({ key: 'vr-move:remove-2' }))?.text).toBe('2 ↓ Remove the old marketplace')
+      await band.press({ key: 'vr-move:remove-1' })
+      await band.press({ key: 'vr-move:remove-2' })
+      expect(seen.filled).toEqual([
+        { text: '/plugin uninstall vero-runto@old-place --scope local', mode: 'replace' },
+        { text: '/plugin marketplace remove old-place', mode: 'replace' },
+      ])
       const out = await $.command.run({ command: 'vero-runto', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 120 } })
-      expect((out as { text?: string }).text).toContain('    /plugin uninstall vero-runto@old-place --scope local')
+      expect((out as { text?: string }).text).toContain('    /plugin uninstall vero-runto@old-place --scope local\n    /plugin marketplace remove old-place')
 
       // the old copy removed: the next turn resumes normal work
       settings.local = { enabledPlugins: { 'vero-runto@vero-plugins': true } } as typeof settings.local
@@ -568,7 +615,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
       await $.turn.start({ text: 'next', turnId: 'T3' })
       expect(await ui.find({ key: `run:${blockHash(LOGIN)}:0` })).toBeUndefined()
       const band = await mountBand($, surface)
-      expect((await band.findAll({ type: 'Button' })).length).toBe(1)
+      expect((await band.findAll({ type: 'Button' })).length).toBe(2)
     })
 
     test('a home copy with no old copy works as usual', async ($, on) => {

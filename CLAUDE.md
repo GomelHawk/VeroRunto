@@ -62,7 +62,7 @@ VeroRunto/                                  the plugin's repository (the catalog
     ├── .claude-plugin/plugin.json          manifest: version, userConfig, "types" contract
     ├── hooks/hooks.json                    { "modules": ["./register.tsx"] }, nothing else
     ├── hooks/register.tsx                  the mod: render, presses, runs, /vero-runto
-    ├── hooks/commands.ts                   pure: find commands, lay out, join, the run's log line
+    ├── hooks/commands.ts                   pure: find commands, lay out, join, the run's log line, refusal toasts
     ├── hooks/source-check.ts               the shared source check: a byte-identical copy of VeroPlugins/shared/hooks/
     ├── types/index.d.ts                    $.state contract: PluginState['vero-runto']
     ├── tests/commands.test.ts              `claude plugin test`: the parser's table
@@ -108,8 +108,10 @@ toast; not copied → a toast with the engine's reason.
 **Run.** `askRun` → `view.confirming = target`; the row becomes `Run? [ Run ] [ Cancel ]`
 and hides its Copy button; a `$.clock.after` drops the question after 30 s; `turn.start`,
 `session.start` and `session.end` reset `view`. `runNow`: refused while another run is on
-(`view.running`); `$.tool.call({ tool: 'Bash', command })`; a `deny` answer → toast;
-else `$.ui.log` gets one line from `runLog()` - ``ran `cmd` → a ⏎ b ⏎ c`` for up to
+(`view.running`); `$.tool.call({ tool: 'Bash', command })`; a `deny` answer → a toast
+from `refusalToast()` (`REFUSED.noVerdict` when the reason names the classifier and "no
+verdict", `REFUSED.denied` otherwise) and the raw reason to `$.ui.log(…, { to: 'debug' })`
+only; else `$.ui.log` gets one line from `runLog()` - ``ran `cmd` → a ⏎ b ⏎ c`` for up to
 three lines within 120 characters, a line count otherwise, `· failed` on an error (a line
 break in a log row draws as a stray glyph) - and the output (`res.text`, cut at 10 000
 characters) is handed to the model with `$.prompt.submit` (never `asUser`) as "VeroRunto
@@ -136,10 +138,10 @@ means **stopped** (`view.source`, `view.legacy`): every hook's first line is the
 own behaviour - `AssistantMessage` passes through, so no buttons and no `$.tool.check`;
 no run, no copy, no submit; `session.start` registers the command and shows one toast;
 `/vero-runto` answers `stoppedMarkdown()` / `legacyMarkdown()`; and the `AbovePrompt`
-hook, otherwise `next(e)`, draws the stopped row - `stoppedBand()` with the three
-`MOVE_LABELS` buttons (`vr-move:1..3`), or `legacyBand()` with `REMOVE_LABEL`
-(`vr-move:remove`), then `RESTART_NOTE`, then what `next(e)` drew beneath - with no ×.
-A button puts its command (`moveSteps()` / `removeStep()`) into the prompt box with
+hook, otherwise `next(e)`, draws the stopped row - `stoppedBand()` with the four
+`MOVE_LABELS` buttons (`vr-move:1..4`), or `legacyBand()` with the two `REMOVE_LABELS`
+buttons (`vr-move:remove-1..2`), then `RESTART_NOTE`, then what `next(e)` drew beneath - with no ×.
+A button puts its command (`moveSteps()` / `removeSteps()`) into the prompt box with
 `$.prompt.fill({ mode: 'replace' })` for the person to press Enter on: the one fill
 VeroRunto ever makes. A draft in the box (`$.prompt.read()`) is asked about first
 (`view.confirmingFill`, `REPLACE_QUESTION`, `vr-move:replace` / `vr-move:cancel`); a
@@ -187,6 +189,13 @@ copy consults it, so no installed copy can opt out.
   `turn.start`, `session.end` - or the kit fails with "no implementation". The render
   test's engine stand-in draws `engine: <text>`, which is how a test tells the engine's
   drawing from the plugin's.
+- **A `$.tool.call` deny is a bare string written for the model.** The auto-mode
+  classifier's reads "…gave no verdict… Issue the action again once, as-is…": it judges a
+  call against the model request behind it, and a press raised between turns has none, so
+  a command outside the allow rules is refused in auto mode. Never toast `res.deny`;
+  `refusalToast()` words it for the person, and `tests/render.test.tsx` asserts no
+  model-directed text reaches a toast or a log row. The two cases are told apart only by
+  that text; re-check its wording on each release.
 - **`$.fs` has no delete.** Anything written to disk stays; hence nothing is written.
 - **The mod API is early access.** Re-run `claude plugin validate` and `claude plugin test`
   against each new Claude Code release before cutting one of ours.

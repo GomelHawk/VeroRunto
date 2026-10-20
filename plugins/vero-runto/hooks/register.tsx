@@ -2,11 +2,11 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, RenderSurface } from 'claude-code'
 
 import type { View } from '../types'
-import { joinAll, joinerOf, parseBlock, runLog } from './commands'
+import { joinAll, joinerOf, parseBlock, refusalToast, runLog } from './commands'
 import type { Command, Group, Joiner, Options, Parsed } from './commands'
 import {
   MOVE_LABELS,
-  REMOVE_LABEL,
+  REMOVE_LABELS,
   REPLACE_NO,
   REPLACE_QUESTION,
   REPLACE_YES,
@@ -17,7 +17,7 @@ import {
   legacyMarkdown,
   legacyToast,
   moveSteps,
-  removeStep,
+  removeSteps,
   sourceOf,
   stoppedBand,
   stoppedMarkdown,
@@ -207,7 +207,8 @@ async function runNow($: EngineInterface, target: Target) {
   try {
     const res = await $.tool.call({ tool: 'Bash', command })
     if (res.deny !== undefined) {
-      $.ui.toast(`Not run: ${res.deny}`, { timeoutMs: 8000 })
+      $.ui.log(`not run \`${command}\`: ${res.deny}`, { to: 'debug' })
+      $.ui.toast(refusalToast(res.deny), { timeoutMs: 8000 })
       return
     }
     let printed = res.text ?? (typeof res.result === 'string' ? res.result : JSON.stringify(res.result))
@@ -320,9 +321,11 @@ export const register: Register = (on, config) => {
         </Box>
       ) : legacy !== undefined ? (
         <Box flexDirection="row" gap={2}>
-          <Button key="vr-move:remove" onPress={fill(removeStep(PLUGIN, legacy))}>
-            {REMOVE_LABEL}
-          </Button>
+          {removeSteps(PLUGIN, legacy).map((command, i) => (
+            <Button key={`vr-move:remove-${i + 1}`} onPress={fill(command)}>
+              {REMOVE_LABELS[i]}
+            </Button>
+          ))}
           <Text dimColor>{RESTART_NOTE}</Text>
         </Box>
       ) : (
