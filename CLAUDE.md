@@ -89,7 +89,8 @@ draws its own tree from `parseBlock()` (cached by text in module memory, 200 ent
 Before drawing, every command's permission verdict is asked with `$.tool.check` (no
 dialog, nothing runs; cached by command text, cleared at `session.start` and
 `turn.start`). `deny`, or hidden characters in the command (controls, `\p{Cf}`), means no
-Run button; a group's All takes the worst verdict of its commands. The buttons sit in a
+Run button; a denied one reads `Run denied by your rules` in its place (`LABEL.denied`).
+A group's All takes the worst verdict of its commands. The buttons sit in a
 `flexShrink={0}` box so only the command column truncates.
 
 On the terminal the hook also draws the reply's gutter itself: a `●` when
@@ -185,6 +186,11 @@ copy consults it, so no installed copy can opt out.
 - **The command name must be a literal** in both `$.command.register` and the
   `command.run` matcher. Through a `const`, `claude plugin validate` lists the hook as a
   gate without `.catch` instead of "answers its own command".
+- **`/clear` fires `session.end` (`reason: 'clear'`) and no `session.start`.** The
+  conversation goes on under a new session id with the same process, state and panes.
+  `session.end` resets only what belongs to the conversation; what a later hook needs
+  from `session.start` is kept there or worked out again when first needed; a pane left
+  open keeps its content. Anything that must outlast the session goes in `$.store`.
 - **A test answers every event the plugin's hooks call `next` on** - `ui.render`,
   `turn.start`, `session.end` - or the kit fails with "no implementation". The render
   test's engine stand-in draws `engine: <text>`, which is how a test tells the engine's

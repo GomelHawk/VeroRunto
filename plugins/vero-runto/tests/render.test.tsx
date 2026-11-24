@@ -323,13 +323,14 @@ for (const surface of ['terminal', 'desktop'] as const) {
       expect(seen.submitted[0]).toContain('````\na\n```\nb\n```\n````')
     })
 
-    test('a denied command has Copy and no Run', async ($, on) => {
+    test('a denied command has Copy, no Run and says why', async ($, on) => {
       fakeWorld(on, { verdicts: { 'gh auth login': 'deny' } })
       await start($, surface)
       const ui = await mountReply($, surface, LOGIN)
       const hash = blockHash(LOGIN)
       expect(await ui.find({ key: `copy:${hash}:0` })).toBeDefined()
       expect(await ui.find({ key: `run:${hash}:0` })).toBe(undefined)
+      expect(await ui.find({ type: 'Text', text: 'Run denied by your rules' })).toBeDefined()
     })
 
     test('a command the engine would ask about has Run', async ($, on) => {
@@ -346,6 +347,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
       const hash = blockHash(HIDDEN)
       expect(await ui.find({ key: `copy:${hash}:0` })).toBeDefined()
       expect(await ui.find({ key: `run:${hash}:0` })).toBe(undefined)
+      expect(await ui.find({ type: 'Text', text: 'Run denied by your rules' })).toBe(undefined)
     })
 
     test('an unanswered question goes back to the buttons after 30 s', async ($, on) => {
@@ -554,6 +556,18 @@ for (const surface of ['terminal', 'desktop'] as const) {
       await band.press({ key: 'vr-move:1' })
       expect(seen.filled).toEqual([])
       expect(seen.toasts[1]).toBe('VeroRunto: close the dialog and press the button again.')
+    })
+
+    test('a /clear, which starts no session: still paused, nothing checked', async ($, on) => {
+      const seen = fakeWorld(on, { env: { VERO_TEST_ROOT: FOREIGN } })
+      await start($, surface)
+      await $.session.end({ reason: 'clear', sessionId: 'S1', resume: { id: 'S1' } })
+      await $.turn.start({ text: 'next', turnId: 'T2' })
+      const ui = await mountReply($, surface, LOGIN)
+      expect(await ui.find({ type: 'Button' })).toBe(undefined)
+      expect(seen.checked).toEqual([])
+      const band = await mountBand($, surface)
+      expect((await band.findAll({ type: 'Button' })).length).toBe(4)
     })
 
     test('moved during the session: the next turn brings the buttons back', async ($, on) => {

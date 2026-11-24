@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.2 - 2026-11-24
+
+### Changed
+
+- **A command your rules deny says so.** Where its Run button would be, the row reads
+  *Run denied by your rules*, so a row with only Copy no longer looks broken. Copy works
+  as before.
+
 ## 1.0.1 - 2026-10-20
 
 ### Fixed

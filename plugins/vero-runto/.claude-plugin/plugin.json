@@ -2,7 +2,7 @@
   "name": "vero-runto",
   "displayName": "VeroRunto",
   "description": "Click. Run. Done. [ Copy ] and [ Run ] after every ! command in Claude's replies: Run asks first, runs it through Claude Code's Bash tool under your permission rules, and hands the output to Claude.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": {
     "name": "Dmitry Koshelenko",
     "url": "https://github.com/GomelHawk"

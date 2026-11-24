@@ -50,6 +50,7 @@ const LABEL = {
   copied: '✓ Copied',
   run: 'Run',
   runAll: 'Run all',
+  denied: 'Run denied by your rules',
 }
 const TOAST = {
   copied: 'Copied.',
@@ -373,10 +374,11 @@ export const register: Register = (on, config) => {
       </Button>
     )
 
-    // The Run control: nothing for hidden characters or a denied command, "running…"
-    // while a run is on, the question once pressed, else the button.
+    // The Run control: nothing for hidden characters, a label for a denied command,
+    // "running…" while a run is on, the question once pressed, else the button.
     const runControl = (target: Target, verdict: Verdict, label: string) => {
-      if (hasHidden(target.text) || verdict === 'deny') return null
+      if (hasHidden(target.text)) return null
+      if (verdict === 'deny') return <Text dimColor>{LABEL.denied}</Text>
       if (v.running === target.id) return <Text dimColor>running…</Text>
       if (v.confirming === target.id) {
         return (

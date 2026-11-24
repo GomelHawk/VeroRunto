@@ -151,9 +151,9 @@ commands follow it:
 **After Copy** the button reads **✓ Copied**. What is copied is the command without the
 `!`, ready for any terminal.
 
-**A command your permission rules forbid** has no Run button, only Copy. One that Claude
-Code would ask you about has the button, and the usual permission dialog opens when you
-confirm.
+**A command your permission rules forbid** has no Run button, only Copy and the words
+*Run denied by your rules*. One that Claude Code would ask you about has the button, and
+the usual permission dialog opens when you confirm.
 
 **A run Claude Code refuses** shows a toast and sends nothing to Claude. In auto mode a
 command no allow rule covers goes to the auto-mode classifier, which judges only what
