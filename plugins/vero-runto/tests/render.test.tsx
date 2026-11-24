@@ -111,7 +111,7 @@ const mountReply = ($: Parameters<TestBody>[0], surface: 'terminal' | 'desktop',
     requestId: 'msg-1',
   })
 
-const BAND = { hasSurvey: false, isWorking: false, maxRows: 3 }
+const BAND = { hasSurvey: false, isCollapsed: false, isWorking: false, maxRows: 3, bodyColumns: 80, scroll: { offset: 0, bodyRows: 3 }, view: {} }
 const mountBand = ($: Parameters<TestBody>[0], surface: 'terminal' | 'desktop') =>
   $.ui.mount({ plugin: 'vero-runto', surface, component: 'AbovePrompt', props: BAND })
 
@@ -297,7 +297,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
         expect(shown).toMatch(/^Not run: /)
         expect(shown).not.toMatch(/issue the action|as-is|classifier|blocked by a rule/i)
         // the point, before any box cuts the line: "Not run:" and why, in one clause
-        expect(seen.toasts[0].split(/\. | - /)[0].length).toBeLessThan(60)
+        expect(((seen.toasts[0] ?? '').split(/\. | - /)[0] ?? '').length).toBeLessThan(60)
       })
     }
 
